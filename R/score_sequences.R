@@ -146,7 +146,7 @@ rank_scores <- function(scored_sequences_fg, scored_sequences_bg) {
         dplyr::group_by(motif_id) %>%
 
         # Sort by score within each group
-        dplyr::arrange(dplyr::desc(score, .by_group = TRUE)) %>%
+        dplyr::arrange(dplyr::desc(score), .by_group = TRUE) %>%
 
         # Add cumulative counts of foreground/background sequences and TPR/FPR
         dplyr::mutate(
