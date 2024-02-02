@@ -1,3 +1,5 @@
+#' @import data.table
+
 # Define the expected column names for FIMO results
 fimo_column_names_cl <-
     c(

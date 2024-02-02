@@ -20,23 +20,20 @@ score_sequences <-
     # Make sure the selected scoring method is a valid option
     method <- match.arg(method)
 
-    # Score the sequences
+    # Calculate the appropriate score for each sequence and each motif
     scored_sequences <-
-        fimo_results %>%
-
-        # Group by sequence and motif
-        dplyr::group_by(sequence_name, motif_id) %>%
-
-        # Calculate the appropriate score for each group
-        dplyr::summarise(
-            score = dplyr::case_when(
-                method == "sum_pvalue" ~ sum(-log10(p_value)),
-                method == "max_pvalue" ~ max(-log10(p_value)),
-                method == "sum_score" ~ sum(score[score > 0]),
-                method == "max_score" ~ max(score)
+        data.table::setDT(fimo_results)[
+            ,
+            .(
+                score = dplyr::case_when(
+                    method == "sum_pvalue" ~ sum(-log10(p_value)),
+                    method == "max_pvalue" ~ max(-log10(p_value)),
+                    method == "sum_score" ~ sum(score[score > 0]),
+                    method == "max_score" ~ max(score)
+                )
             ),
-            .groups = "drop"
-        )
+            by = .(sequence_name, motif_id)
+        ]
 
     # Return the table of sequence scores
     return(scored_sequences)
@@ -86,34 +83,34 @@ combine_scores <-
             motif_group = ind
         )
 
-    # Score the sequences
+    # Add a column with the motif groupings
     scored_sequences <-
-        scored_sequences %>%
-
-        # Add a column with the motif groupings
         dplyr::inner_join(
+            scored_sequences,
             motif_groups,
             by = "motif_id"
-        ) %>%
+        )
 
-        # Group by sequence and motif group
-        dplyr::group_by(sequence_name, motif_group) %>%
-
-        # Combine all the scores for each sequence using the appropriate method
-        dplyr::summarise(
-            score = dplyr::case_when(
-                method == "sum" ~ sum(score),
-                method == "max" ~ max(score),
-                method == "mean" ~ mean(score)
+    # Calculate the appropriate score for each sequence and each motif
+    scored_sequences_grouped <-
+        data.table::setDT(scored_sequences)[
+            ,
+            .(
+                score = dplyr::case_when(
+                    method == "sum" ~ sum(score),
+                    method == "max" ~ max(score),
+                    method == "mean" ~ mean(score)
+                )
             ),
-            .groups = "drop"
-        ) %>%
+            by = .(sequence_name, motif_group)
+        ]
 
-        # Rename the motif_group column
-        dplyr::rename(motif_id = motif_group)
+    # Rename the motif_group column
+    scored_sequences_grouped <-
+        dplyr::rename(scored_sequences_grouped, motif_id = motif_group)
 
     # Return the table of sequence scores
-    return(scored_sequences)
+    return(scored_sequences_grouped)
 }
 
 #' Calculate TPR and FPR
