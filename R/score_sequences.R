@@ -39,6 +39,63 @@ score_sequences <-
     return(scored_sequences)
 }
 
+#' Normalize sequence scores
+#'
+#' Normalize sequence scores based on the lengths of the sequences by performing
+#' a linear regression.
+#'
+#' @param scored_sequences `data.frame`. The table of sequence scores to
+#'   normalize.
+#' @param bed_file `character`. The path to the BED format file of the
+#'   sequences.
+#'
+#' @return A `data.frame` with columns `sequence_name`, `motif_id`, and `score`.
+#' @export
+#'
+#' @examples
+#' print("")
+normalize_scores <- function(scored_sequences, bed_file) {
+    # Load the BED file and add a width column
+    sequences <-
+        vroom::vroom(
+            bed_file,
+            delim = "\t",
+            col_names = FALSE
+        ) %>%
+
+        # Calculate the width
+        dplyr::mutate(width = X3 - X2)
+
+    # Add the width to the scored sequences
+    scored_sequences <-
+        scored_sequences %>%
+
+        # Add a column with the peak width
+        dplyr::left_join(
+            dplyr::select(sequences, X4, width),
+            by = c("sequence_name" = "X4")
+        ) %>%
+
+        # Rename the score column
+        dplyr::rename(score_og = score)
+
+    # Regress the peak width out of the score
+    scored_sequences <-
+        data.table::setDT(scored_sequences)[
+            ,
+            .(
+                sequence_name,
+                score = resid(lm(score_og ~ width))
+            ),
+            by = .(motif_id)
+        ] %>%
+
+        dplyr::relocate(sequence_name)
+
+    # Return the normalized score table
+    return(scored_sequences)
+}
+
 #' Combine motif scores
 #'
 #' Calculate a single score for each sequence based on multiple motifs.
