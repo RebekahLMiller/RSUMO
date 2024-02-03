@@ -66,9 +66,16 @@ normalize_scores <- function(scored_sequences, bed_file) {
         # Calculate the width
         dplyr::mutate(width = X3 - X2)
 
+    # Pull out all the rows with a score of zero
+    scored_sequences_0 <-
+        dplyr::filter(scored_sequences, score == 0)
+
     # Add the width to the scored sequences
     scored_sequences <-
         scored_sequences %>%
+
+        # Only keep rows with a score > zero
+        dplyr::filter(score > 0) %>%
 
         # Add a column with the peak width
         dplyr::left_join(
@@ -90,7 +97,11 @@ normalize_scores <- function(scored_sequences, bed_file) {
             by = .(motif_id)
         ] %>%
 
-        dplyr::relocate(sequence_name)
+        # Move the sequence_name column to the front
+        dplyr::relocate(sequence_name) %>%
+
+        # Add back in the rows with a score of zero
+        dplyr::bind_rows(scored_sequences_0)
 
     # Return the normalized score table
     return(scored_sequences)
